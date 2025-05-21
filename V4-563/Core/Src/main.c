@@ -163,12 +163,12 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   /* init code for FATFS */
-//  MX_FATFS_Init();
+  MX_FATFS_Init();
   /* Mount SD Card */
-//  if(f_mount(&fs, "", 0) != FR_OK)
-//  {
-//    RedLed(LED_EBLINK_1);
-//  }
+  if(f_mount(&fs, "", 0) != FR_OK)
+  {
+    RedLed(LED_EBLINK_1);
+  }
 
   (void)GetSettings();
 
