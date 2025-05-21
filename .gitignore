@@ -1,0 +1,7 @@
+build
+Backup
+mx.scratch
+!.settings
+**/Debug/
+**/Release/
+
