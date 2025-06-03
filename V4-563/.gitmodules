@@ -1,0 +1,8 @@
+[submodule "Middleware/Third_Party/FreeRTOS-Plus-TCP"]
+	path = Middleware/Third_Party/FreeRTOS-Plus-TCP
+	url = https://github.com/FreeRTOS/FreeRTOS-Plus-TCP
+	branch = main
+[submodule "Middleware/Third_Party/FreeRTOS-Plus-FAT"]
+	path = Middleware/Third_Party/FreeRTOS-Plus-FAT
+	url = https://github.com/FreeRTOS/Lab-Project-FreeRTOS-FAT
+	branch = main

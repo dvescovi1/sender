@@ -40,6 +40,8 @@ add_executable(${CMAKE_PROJECT_NAME})
 # Add STM32CubeMX generated sources
 add_subdirectory(cmake/stm32cubemx)
 
+set(THIRD_PARTY_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Middlewares/Third_Party")
+
 # Link directories setup
 target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined library search paths
@@ -53,6 +55,9 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc
+    ${THIRD_PARTY_PATH}/FreeRTOS-Plus-FAT/include
+    ${THIRD_PARTY_PATH}/FreeRTOS-Plus-TCP/include
 )
 
 # Add project symbols (macros)
