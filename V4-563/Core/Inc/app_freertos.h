@@ -55,11 +55,6 @@ extern "C" {
 
 /* USER CODE END EM */
 extern osThreadId_t defaultTaskHandle;
-extern osThreadId_t shellHandle;
-extern osThreadId_t scriptHandle;
-extern osThreadId_t ledHandle;
-extern osThreadId_t commandstationHandle;
-extern osThreadId_t inputHandle;
 
 /* Exported function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -67,11 +62,6 @@ extern osThreadId_t inputHandle;
 /* USER CODE END FunctionPrototypes */
 
 void StartDefaultTask(void *argument);
-void ShellTask(void *argument);
-void ShellTask(void *argument);
-void LedTask(void *argument);
-void CommandStationTask(void *argument);
-void InputTask(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
