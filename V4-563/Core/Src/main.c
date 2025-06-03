@@ -17,18 +17,16 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
-//#include "app_threadx.h"
 #include "main.h"
 #include "string.h"
+#include "cmsis_os2.h"
 
-#include "cmsis_os.h"
+/* Private includes ----------------------------------------------------------*/
+/* USER CODE BEGIN Includes */
 #include "fatfs.h"
 #include "ff.h"
 //k #include "lwip.h"
 #include "usb_device.h"
-
-/* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */
 #include "LED.h"
 #include "Settings.h"
 #include "Variables.h"
@@ -79,8 +77,6 @@ UART_HandleTypeDef huart3;
 
 PCD_HandleTypeDef hpcd_USB_DRD_FS;
 
-osThreadId_t defaultTaskHandle;
-
 /* USER CODE BEGIN PV */
 uint32_t PCLK1Freq;
 
@@ -103,6 +99,7 @@ extern void telnet_server_init(void);
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+void MX_FREERTOS_Init(void);
 static void MX_GPIO_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_FDCAN1_Init(void);
@@ -113,6 +110,13 @@ static void MX_RTC_Init(void);
 static void MX_SPI3_Init(void);
 static void MX_USB_PCD_Init(void);
 /* USER CODE BEGIN PFP */
+//extern void ShellTask(void *argument);
+//extern void LedTask(void *argument);
+extern void http_server_init(void);
+//extern void UsbTask(void *argument);
+
+//extern void Telnet_init(void);
+extern void telnet_server_init(void);
 
 /* USER CODE END PFP */
 
@@ -182,66 +186,15 @@ int main(void)
   GreenLed(LED_NORMAL);
 
   /* USER CODE END 2 */
-	osKernelInitialize();
 
-	const osThreadAttr_t defaultTask_attributes = {
-		.name = "defaultTask",
-		.priority = (osPriority_t) osPriorityNormal,
-		.stack_size = 2000
-	};
-	defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+  /* Init scheduler */
+  osKernelInitialize();
 
-	/* USER CODE BEGIN RTOS_THREADS */
-	/* add threads, ... */
+  /* Call init function for freertos objects (in app_freertos.c) */
+  MX_FREERTOS_Init();
 
-	const osThreadAttr_t shellTask_attributes = {
-		.name = "shell",
-		.priority = (osPriority_t) osPriorityAboveNormal4,
-		//.stack_size = 1024
-		//.stack_size = 2000
-		.stack_size = 3000
-	};
-	osThreadNew(ShellTask, NULL, &shellTask_attributes);
-
-	const osThreadAttr_t scriptTask_attributes = {
-		.name = "script",
-		.priority = (osPriority_t) osPriorityAboveNormal1,
-		//.stack_size = 1024
-		//.stack_size = 2500
-		.stack_size = 3000
-	};
-	osThreadNew(ScriptTask, NULL, &scriptTask_attributes);
-
-	const osThreadAttr_t ledTask_attributes = {
-		.name = "led",
-		.priority = (osPriority_t) osPriorityNormal1,
-		.stack_size = 256
-	};
-	osThreadNew(LedTask, NULL, &ledTask_attributes);
-
-	const osThreadAttr_t commandstationTask_attributes = {
-		.name = "commandstation",
-		.priority = (osPriority_t) osPriorityNormal1,
-		.stack_size = 3000
-	};
-	osThreadNew(CommandStationTask, NULL, &commandstationTask_attributes);
-
-	const osThreadAttr_t inputTask_attributes = {
-		.name = "input",
-		.priority = (osPriority_t) osPriorityNormal1,
-		.stack_size = 256
-	};
-	osThreadNew(InputTask, NULL, &inputTask_attributes);
-
-	GreenLed(LED_NORMAL);
-
-	//	http_server_init();
-//k	telnet_server_init();
-
-	/* USER CODE END RTOS_THREADS */
-
-	/* Start scheduler */
-	osKernelStart();
+  /* Start scheduler */
+  osKernelStart();
 
   /* We should never get here as control is now taken by the scheduler */
 
@@ -271,19 +224,13 @@ void SystemClock_Config(void)
 
   while(!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {}
 
-  /** Configure LSE Drive Capability
-  *  Warning : Only applied when the LSE is disabled.
-  */
-  HAL_PWR_EnableBkUpAccess();
-  __HAL_RCC_LSEDRIVE_CONFIG(RCC_LSEDRIVE_LOW);
-
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI48|RCC_OSCILLATORTYPE_HSI
                               |RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE
                               |RCC_OSCILLATORTYPE_CSI;
-  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+  RCC_OscInitStruct.HSEState = RCC_HSE_BYPASS;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSIDiv = RCC_HSI_DIV2;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
@@ -321,8 +268,11 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-}
 
+  /** Configure the programming delay
+  */
+  __HAL_FLASH_SET_PROGRAM_DELAY(FLASH_PROGRAMMING_DELAY_0);
+}
 
 /**
   * @brief ADC1 Initialization Function
@@ -491,8 +441,12 @@ static void MX_ICACHE_Init(void)
 
   /* USER CODE END ICACHE_Init 1 */
 
-  /** Enable instruction cache (default 2-ways set associative cache)
+  /** Enable instruction cache in 1-way (direct mapped cache)
   */
+  if (HAL_ICACHE_ConfigAssociativityMode(ICACHE_1WAY) != HAL_OK)
+  {
+    Error_Handler();
+  }
   if (HAL_ICACHE_Enable() != HAL_OK)
   {
     Error_Handler();
@@ -565,7 +519,7 @@ static void MX_RTC_Init(void)
   sTime.StoreOperation = RTC_STOREOPERATION_RESET;
   if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BCD) != HAL_OK)
   {
-//k    Error_Handler();
+    Error_Handler();
   }
   sDate.WeekDay = RTC_WEEKDAY_MONDAY;
   sDate.Month = RTC_MONTH_JANUARY;
@@ -574,7 +528,7 @@ static void MX_RTC_Init(void)
 
   if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BCD) != HAL_OK)
   {
-//k    Error_Handler();
+    Error_Handler();
   }
   /* USER CODE BEGIN RTC_Init 2 */
   HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR0, RTC_COOKIE);
@@ -610,7 +564,7 @@ static void MX_SPI3_Init(void)
   hspi3.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi3.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
   hspi3.Init.CRCPolynomial = 0x7;
-  hspi3.Init.NSSPMode = SPI_NSS_PULSE_DISABLE;
+  hspi3.Init.NSSPMode = SPI_NSS_PULSE_ENABLE;
   hspi3.Init.NSSPolarity = SPI_NSS_POLARITY_LOW;
   hspi3.Init.FifoThreshold = SPI_FIFO_THRESHOLD_01DATA;
   hspi3.Init.MasterSSIdleness = SPI_MASTER_SS_IDLENESS_00CYCLE;
@@ -722,8 +676,8 @@ static void MX_USB_PCD_Init(void)
 static void MX_GPIO_Init(void)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
-/* USER CODE BEGIN MX_GPIO_Init_1 */
-/* USER CODE END MX_GPIO_Init_1 */
+  /* USER CODE BEGIN MX_GPIO_Init_1 */
+  /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
@@ -801,8 +755,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Alternate = GPIO_AF7_USART2;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
-/* USER CODE BEGIN MX_GPIO_Init_2 */
-/* USER CODE END MX_GPIO_Init_2 */
+  /* USER CODE BEGIN MX_GPIO_Init_2 */
+  /* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
@@ -845,32 +799,9 @@ uint32_t MakeSerialNumber(void)
 
 /* USER CODE END 4 */
 
-void StartDefaultTask(void *argument)
-{
-
-
-  /* init code for FATFS */
-//  MX_FATFS_Init();
-
-  /* init code for LWIP */
-//k  MX_LWIP_Init();
-
-  /* init code for USB_DEVICE */
-//k  MX_USB_DEVICE_Init();
-
-  /* USER CODE BEGIN 5 */
-
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
-  /* USER CODE END 5 */
-}
-
 /**
   * @brief  Period elapsed callback in non blocking mode
-  * @note   This function is called  when TIM1 interrupt took place, inside
+  * @note   This function is called  when TIM6 interrupt took place, inside
   * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
   * a global variable "uwTick" used as application time base.
   * @param  htim : TIM handle
@@ -881,7 +812,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   /* USER CODE BEGIN Callback 0 */
 
   /* USER CODE END Callback 0 */
-  if (htim->Instance == TIM1) {
+  if (htim->Instance == TIM6)
+  {
     HAL_IncTick();
   }
   /* USER CODE BEGIN Callback 1 */
